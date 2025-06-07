@@ -6,6 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Events\TaskStatusUpdated;
+use App\Events\TestEvent;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Broadcasting\Broadcasters\PusherBroadcaster;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Broadcasting\Channel;
+use Pusher\Pusher;
 
 class TaskController extends Controller
 {
@@ -86,7 +94,7 @@ class TaskController extends Controller
         $task->update($request->all());
 
         if ($request->has('status') && $originalStatus !== $task->status) {
-            // Broadcast event
+            $this->sendMessageToPusher($task);
         }
 
         return response()->json($task->load(['assignedUser:id,name,email', 'createdByUser:id,name,email']));
@@ -105,5 +113,49 @@ class TaskController extends Controller
 
         $task->delete();
         return response()->json(null, 204);
+    }
+
+    /**
+     * Broadcasts a TaskStatusUpdated event to Pusher.
+     * Sends a notification manually to prevent conflict with default BroadcastManager
+     *
+     * @param  Task  $task
+     * @return bool
+     */
+    public function sendMessageToPusher(Task $task): bool
+    {
+        $pusherConfig = Config::get('broadcasting.connections.pusher');
+
+        if (empty($pusherConfig['key'])
+            || empty($pusherConfig['secret'])
+            || empty($pusherConfig['app_id'])
+        ) {
+            Log::error('Pusher configuration is incomplete. Cannot broadcast.');
+            return false;
+        }
+
+        $pusher = new Pusher(
+            $pusherConfig['key'],
+            $pusherConfig['secret'],
+            $pusherConfig['app_id'],
+            $pusherConfig['options'] ?? []
+        );
+
+        $broadcaster = new PusherBroadcaster($pusher, $pusherConfig);
+        $event = new TaskStatusUpdated($task);
+        $channelNames = collect($event->broadcastOn())->map(fn ($channel) => $channel->name)->all();
+        $eventName = method_exists($event, 'broadcastAs') ? $event->broadcastAs() : class_basename($event);
+
+        try {
+            $broadcaster->broadcast(
+                $channelNames,
+                $eventName,
+                $event->broadcastWith()
+            );
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error broadcasting event: ' . $e->getMessage());
+            return false;
+        }
     }
 }
