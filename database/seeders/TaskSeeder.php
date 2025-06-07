@@ -2,11 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Task;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use App\Models\User;
-use Illuminate\Support\Arr;
 
 class TaskSeeder extends Seeder
 {
@@ -17,16 +15,6 @@ class TaskSeeder extends Seeder
      */
     public function run(): void
     {
-        $faker = \Faker\Factory::create();
-
-        for ($i = 0; $i < 100; $i++) {
-            DB::table('tasks')->insert([
-                'title'              => $faker->sentence(),
-                'description'        => $faker->paragraph(),
-                'status'             => Arr::random(['new', 'in_progress', 'done']),
-                'created_by_user_id' => User::all()->random()->id,
-                'assigned_user_id'   => User::all()->random()->id,
-            ]);
-        }
+        Task::factory()->count(100)->create();
     }
 }
