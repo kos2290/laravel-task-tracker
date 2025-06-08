@@ -45,7 +45,7 @@ class NewTaskAdded extends Notification
         $message = "🎉 <b>New task added!</b> 🎉\n\n";
         $message .= "<b>Title:</b> " . $this->task->title . "\n";
         $message .= "<b>Created By:</b> " . $this->task->createdByUser->name . "\n";
-        $message .= "<b>Assigned To:</b> " . $this->task->assignedUser->name . "\n";
+        $message .= "<b>Assigned To:</b> " . ($this->task->assignedUser ? $this->task->assignedUser->name : 'Unassigned') . "\n";
         $message .= "<b>Status:</b> " . $this->task->status . "\n";
         $message .= "<b>View Task:</b> " . url('/api/tasks/' . $this->task->id);
 
