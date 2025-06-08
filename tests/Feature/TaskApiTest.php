@@ -45,7 +45,7 @@ class TaskApiTest extends TestCase
 
         $response
             ->assertStatus(200)
-            ->assertJsonCount(2)
+            ->assertJsonCount(2, 'data')
             ->assertJsonFragment(['id' => $task1->id])
             ->assertJsonFragment(['id' => $task2->id])
             ->assertJsonMissing(['id' => $task3->id]);

@@ -6,34 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\LoginRequest;
+use App\Http\Resources\UserResource;
 
 class AuthController extends Controller
 {
     /**
      * Handle an incoming registration request.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Http\Requests\RegisterRequest  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', Password::defaults(), 'confirmed'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Validation error',
-                'errors'  => $validator->errors()
-            ], 422); // 422 Unprocessable Entity
-        }
-
         // Create the user
         $user = User::create([
             'name'     => $request->name,
@@ -47,7 +34,7 @@ class AuthController extends Controller
         return response()->json([
             'status'       => true,
             'message'      => 'User created successfully',
-            'user'         => $user,
+            'user'         => new UserResource($user),
             'access_token' => $token,
             'token_type'   => 'Bearer',
         ], 201); // 201 Created
@@ -60,25 +47,12 @@ class AuthController extends Controller
      * generates and returns a personal access token along with the user
      * information. Throws a validation exception if the credentials are invalid.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Http\Requests\LoginRequest  $request
      * @return \Illuminate\Http\JsonResponse
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Validation error',
-                'errors'  => $validator->errors()
-            ], 422); // 422 Unprocessable Entity
-        }
-
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
@@ -92,10 +66,9 @@ class AuthController extends Controller
             ]);
         }
 
-
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json(['token' => $token, 'user' => $user]);
+        return response()->json(['token' => $token, 'user' => new UserResource($user)]);
     }
 
     /**
